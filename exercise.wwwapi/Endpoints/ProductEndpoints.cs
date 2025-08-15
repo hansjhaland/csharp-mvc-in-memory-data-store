@@ -20,6 +20,7 @@ namespace exercise.wwwapi.Endpoints
         }
 
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public static async Task<IResult> GetProducts(IRepository repository, [FromQuery] string category = "")
         {
             var results = await repository.GetAsync(category);
@@ -35,10 +36,15 @@ namespace exercise.wwwapi.Endpoints
             return TypedResults.Ok(entity);
         }
 
-        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public static async Task<IResult> AddProduct(IRepository repository, ProductPost model)
         {
+            var existingProducts = await repository.GetAsync("");
+            if (existingProducts.Any(product => product.Name.ToLower() == model.Name.ToLower()))
+            {
+                return TypedResults.BadRequest("Product with provided name already exists");
+            }
             Product entity = new Product();
             entity.Name = model.Name;
             entity.Category = model.Category;
@@ -65,9 +71,14 @@ namespace exercise.wwwapi.Endpoints
 
             if (entity is null) return TypedResults.NotFound(new { Error = "Product not found" });
 
+            var existingProducts = await repository.GetAsync("");
+            if (existingProducts.Any(product => product.Name.ToLower() == model.Name.ToLower() && product.Id != id))
+            {
+                return TypedResults.BadRequest("Product with provided name already exists");
+            }
             if (model.Name != null) entity.Name = model.Name;
             if (model.Category != null) entity.Category = model.Category;
-            if (model.Price != null) entity.Price = (int)model.Price;
+            if (model.Price != null) entity.Price = model.Price.Value;
 
             var product = await repository.UpdateAsync(id, entity);
 
